@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>马里奥单词游戏</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(to bottom, #60a5fa, #93c5fd, #4ade80);
+      padding: 20px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* 云朵装饰 */
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 100px;
+      opacity: 0.8;
+    }
+    .cloud1 { top: 40px; left: 40px; width: 96px; height: 48px; }
+    .cloud2 { top: 80px; right: 80px; width: 128px; height: 64px; }
+    .cloud3 { top: 160px; left: 33%; width: 112px; height: 56px; }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* 得分板 */
+    .scoreboard {
+      background: #facc15;
+      border: 4px solid #ca8a04;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .score {
+      font-size: 24px;
+      font-weight: bold;
+      color: #78350f;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-purple { background: #a855f7; }
+    .btn-purple:hover { background: #9333ea; }
+    .btn-red { background: #ef4444; }
+    .btn-red:hover { background: #dc2626; }
+    .btn-blue { background: #3b82f6; }
+    .btn-blue:hover { background: #2563eb; }
+    .btn-green { background: #22c55e; }
+    .btn-green:hover { background: #16a34a; }
+    .btn-yellow { background: #facc15; }
+    .btn-yellow:hover { background: #eab308; }
+    .btn-gray { background: #9ca3af; }
+    .btn-gray:hover { background: #6b7280; }
+
+    /* 单词管理面板 */
+    .word-manager {
+      background: white;
+      border: 4px solid #a855f7;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      display: none;
+    }
+
+    .word-manager.active {
+      display: block;
+    }
+
+    .manager-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .manager-header h2 {
+      color: #a855f7;
+      font-size: 24px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6b7280;
+    }
+
+    .word-form {
+      background: #f3e8ff;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .word-input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid #d8b4fe;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .word-input:focus {
+      outline: none;
+      border-color: #a855f7;
+    }
+
+    .word-list {
+      max-height: 256px;
+      overflow-y: auto;
+    }
+
+    .word-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f9fafb;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .word-item:hover {
+      background: #f3f4f6;
+    }
+
+    .word-text {
+      flex: 1;
+    }
+
+    .word-en {
+      font-weight: bold;
+      color: #2563eb;
+    }
+
+    .word-cn {
+      color: #374151;
+    }
+
+    .word-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+    }
+
+    /* 主游戏区 */
+    .game-area {
+      background: white;
+      border: 4px solid #1f2937;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+
+    .sound-btn {
+      background: #3b82f6;
+      border: none;
+      color: white;
+      padding: 16px 32px;
+      border-radius: 9999px;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 auto 32px;
+      transition: all 0.2s;
+    }
+
+    .sound-btn:hover {
+      background: #2563eb;
+      transform: scale(1.1);
+    }
+
+    .sound-btn:active {
+      transform: scale(0.95);
+    }
+
+    .sound-btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .hint {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 32px;
+    }
+
+    /* 答案区 */
+    .answer-area {
+      min-height: 80px;
+      background: #fef3c7;
+      border: 4px solid #eab308;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 32px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .placeholder {
+      color: #9ca3af;
+      font-size: 20px;
+    }
+
+    .letter-btn {
+      width: 56px;
+      height: 56px;
+      border: none;
+      border-radius: 8px;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: all 0.2s;
+    }
+
+    .letter-btn:hover:not(:disabled) {
+      transform: scale(1.1);
+    }
+
+    .letter-btn:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    .letter-btn.answer {
+      background: #22c55e;
+      color: white;
+    }
+
+    .letter-btn.answer:hover {
+      background: #16a34a;
+    }
+
+    .letter-btn.choice {
+      background: #ef4444;
+      color: white;
+    }
+
+    .letter-btn.choice:hover {
+      background: #dc2626;
+    }
+
+    .letter-btn:disabled {
+      background: #d1d5db;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+
+    /* 字母选择区 */
+    .letters-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    /* 成功提示 */
+    .success-msg {
+      margin-top: 24px;
+      background: #22c55e;
+      border: 4px solid #15803d;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      animation: bounce 1s infinite;
+    }
+
+    .success-msg.active {
+      display: flex;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    /* 砖块装饰 */
+    .bricks {
+      margin-top: 32px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .brick {
+      width: 64px;
+      height: 64px;
+      background: #ca8a04;
+      border: 4px solid #78350f;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .pulse {
+      animation: pulse 1s infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="cloud cloud1"></div>
+  <div class="cloud cloud2"></div>
+  <div class="cloud cloud3"></div>
+
+  <div class="container">
+    <!-- 得分板 -->
+    <div class="scoreboard">
+      <div class="score">
+        <span>⭐</span>
+        <span>分数: <span id="score">0</span></span>
+      </div>
+      <div class="buttons">
+        <button class="btn btn-purple" onclick="toggleWordManager()">
+          ✏️ 单词库
+        </button>
+        <button class="btn btn-red" onclick="resetGame()">
+          🔄 重新开始
+        </button>
+      </div>
+    </div>
+
+    <!-- 单词管理面板 -->
+    <div id="wordManager" class="word-manager">
+      <div class="manager-header">
+        <h2>单词库管理</h2>
+        <button class="close-btn" onclick="toggleWordManager()">✖</button>
+      </div>
+
+      <div class="word-form">
+        <div class="input-group">
+          <input type="text" id="englishInput" class="word-input" placeholder="英文单词">
+          <input type="text" id="chineseInput" class="word-input" placeholder="中文意思">
+        </div>
+        <div class="input-group">
+          <button id="addBtn" class="btn btn-blue" onclick="addWord()" style="flex: 1;">
+            ➕ 添加单词
+          </button>
+          <button id="saveBtn" class="btn btn-green" onclick="saveEdit()" style="flex: 1; display: none;">
+            💾 保存修改
+          </button>
+          <button id="cancelBtn" class="btn btn-gray" onclick="cancelEdit()" style="flex: 1; display: none;">
+            取消
+          </button>
+        </div>
+      </div>
+
+      <div id="wordList" class="word-list"></div>
+      <p style="margin-top: 16px; color: #6b7280; font-size: 14px;">
+        共 <span id="wordCount">0</span> 个单词
+      </p>
+    </div>
+
+    <!-- 主游戏区 -->
+    <div class="game-area">
+      <button id="soundBtn" class="sound-btn" onclick="playSound()">
+        <span id="soundIcon">🔊</span>
+        <span id="chineseWord">加载中...</span>
+      </button>
+      <p class="hint">点击听发音</p>
+
+      <!-- 答案区 -->
+      <div id="answerArea" class="answer-area">
+        <span class="placeholder">点击下方字母开始拼写...</span>
+      </div>
+
+      <!-- 字母选择区 -->
+      <div id="lettersArea" class="letters-area"></div>
+
+      <!-- 成功提示 -->
+      <div id="successMsg" class="success-msg">
+        <span>🏆</span>
+        <span>太棒了！+10分</span>
+        <span>🏆</span>
+      </div>
+    </div>
+
+    <!-- 砖块装饰 -->
+    <div class="bricks">
+      <div class="brick"></div>
+      <div class="brick"></div>
+      <div class="brick"></div>
+      <div class="brick"></div>
+      <div class="brick"></div>
+    </div>
+  </div>
+
+  <script>
+    // 游戏状态
+    const WORD_LIB_PASSWORD = "0249"; 
+    let hasWordLibAccess = false;
+
+    // 存储单词库到 localStorage
+    function saveWordsToStorage() {
+      localStorage.setItem("wordLibrary", JSON.stringify(words));
+    }
+
+    // 从 localStorage 读取单词库
+    function loadWordsFromStorage() {
+      const saved = localStorage.getItem("wordLibrary");
+      if (saved) {
+        words = JSON.parse(saved);
+      }
+    }
+
+
+    let words = [
+      { english: 'attempt', chinese: '尝试' },
+      { english: 'hospitality', chinese: '热情好客' },
+      { english: 'firmly', chinese: '坚定地（确定）' },
+      { english: 'inattention', chinese: '忽略' },
+      { english: 'neglect', chinese: '忽略' },
+      { english: 'eliminate', chinese: '消除' },
+      { english: 'stay away', chinese: '没有出席' },
+      { english: 'conducive', chinese: '适合' },
+      { english: 'compliance', chinese: '服从' }
+    ];
+
+    let currentWordIndex = 0;
+    let score = 0;
+    let userAnswer = [];
+    let shuffledLetters = [];
+    let isPlaying = false;
+    let editingIndex = null;
+
+
+
+    // 初始化游戏
+    function initGame() {
+      loadWordsFromStorage();
+      shuffleLetters();
+      renderWordList();
+    }
+    // 打乱字母
+    function shuffleLetters() {
+      const word = words[currentWordIndex];
+      document.getElementById('chineseWord').textContent = word.chinese;
+      
+      const letters = word.english.split('');
+      shuffledLetters = letters
+        .map((letter, index) => ({ letter, id: index, used: false }))
+        .sort(() => Math.random() - 0.5);
+      
+      userAnswer = [];
+      renderGame();
+    }
+
+    // 渲染游戏界面
+    function renderGame() {
+      // 渲染答案区
+      const answerArea = document.getElementById('answerArea');
+      if (userAnswer.length === 0) {
+        answerArea.innerHTML = '<span class="placeholder">点击下方字母开始拼写...</span>';
+      } else {
+        answerArea.innerHTML = userAnswer
+          .map((obj, index) => 
+            `<button class="letter-btn answer" onclick="removeFromAnswer(${index})">${obj.letter}</button>`
+          )
+          .join('');
+      }
+
+      // 渲染字母选择区
+      const lettersArea = document.getElementById('lettersArea');
+      lettersArea.innerHTML = shuffledLetters
+        .map((obj) => 
+          `<button class="letter-btn choice" 
+            onclick="addToAnswer(${obj.id})" 
+            ${obj.used ? 'disabled' : ''}>
+            ${obj.letter}
+          </button>`
+        )
+        .join('');
+    }
+
+    // 添加字母到答案
+    function addToAnswer(id) {
+      const letterObj = shuffledLetters.find(l => l.id === id);
+      if (letterObj.used) return;
+
+      userAnswer.push(letterObj);
+      letterObj.used = true;
+      renderGame();
+
+      // 检查是否完成
+      if (userAnswer.length === words[currentWordIndex].english.length) {
+        checkAnswer();
+      }
+    }
+
+    // 从答案中移除字母
+    function removeFromAnswer(index) {
+      const letterObj = userAnswer[index];
+      userAnswer.splice(index, 1);
+      
+      const found = shuffledLetters.find(l => l.id === letterObj.id);
+      found.used = false;
+      
+      renderGame();
+    }
+
+    // 检查答案
+    function checkAnswer() {
+      const userWord = userAnswer.map(l => l.letter).join('');
+      const correctWord = words[currentWordIndex].english;
+      
+      if (userWord === correctWord) {
+        score += 10;
+        document.getElementById('score').textContent = score;
+        
+        const successMsg = document.getElementById('successMsg');
+        successMsg.classList.add('active');
+        
+        setTimeout(() => {
+          successMsg.classList.remove('active');
+          nextWord();
+        }, 1500);
+      }
+    }
+
+    // 下一个单词
+    function nextWord() {
+      currentWordIndex = (currentWordIndex + 1) % words.length;
+      shuffleLetters();
+    }
+
+    // 重置游戏
+    function resetGame() {
+      currentWordIndex = 0;
+      score = 0;
+      document.getElementById('score').textContent = score;
+      shuffleLetters();
+    }
+
+    // 播放发音
+    function playSound() {
+      if (isPlaying) return;
+      
+      isPlaying = true;
+      const soundBtn = document.getElementById('soundBtn');
+      const soundIcon = document.getElementById('soundIcon');
+      
+      soundBtn.disabled = true;
+      soundIcon.classList.add('pulse');
+      
+      try {
+        const utterance = new SpeechSynthesisUtterance(words[currentWordIndex].english);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        utterance.onend = () => {
+          isPlaying = false;
+          soundBtn.disabled = false;
+          soundIcon.classList.remove('pulse');
+        };
+        utterance.onerror = () => {
+          isPlaying = false;
+          soundBtn.disabled = false;
+          soundIcon.classList.remove('pulse');
+        };
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.log('语音播放失败');
+        isPlaying = false;
+        soundBtn.disabled = false;
+        soundIcon.classList.remove('pulse');
+      }
+    }
+
+    // 切换单词管理器
+    function toggleWordManager() {
+      if (!hasWordLibAccess) {
+        const pwd = prompt("请输入访问密码：");
+
+        if (pwd !== WORD_LIB_PASSWORD) {
+          alert("密码错误！");
+          return;
+        }
+
+        hasWordLibAccess = true; // 成功一次之后就不再重复验证
+        alert("验证成功～可以管理单词库啦！");
+      }
+
+      const manager = document.getElementById('wordManager');
+      manager.classList.toggle('active');
+    }
+
+
+    // 渲染单词列表
+    function renderWordList() {
+      const wordList = document.getElementById('wordList');
+      wordList.innerHTML = words
+        .map((word, index) => `
+          <div class="word-item">
+            <div class="word-text">
+              <span class="word-en">${word.english}</span>
+              <span style="color: #9ca3af; margin: 0 8px;">-</span>
+              <span class="word-cn">${word.chinese}</span>
+            </div>
+            <div class="word-actions">
+              <button class="icon-btn btn-yellow" onclick="startEdit(${index})">✏️</button>
+              <button class="icon-btn btn-red" onclick="deleteWord(${index})">🗑️</button>
+            </div>
+          </div>
+        `)
+        .join('');
+      
+      document.getElementById('wordCount').textContent = words.length;
+    }
+
+    // 添加单词
+    function addWord() {
+      const english = document.getElementById('englishInput').value.trim().toLowerCase();
+      const chinese = document.getElementById('chineseInput').value.trim();
+      
+      if (english && chinese) {
+        words.push({ english, chinese });
+        saveWordsToStorage();
+        document.getElementById('englishInput').value = '';
+        document.getElementById('chineseInput').value = '';
+        renderWordList();
+      }
+    }
+
+    // 开始编辑
+    function startEdit(index) {
+      editingIndex = index;
+      document.getElementById('englishInput').value = words[index].english;
+      document.getElementById('chineseInput').value = words[index].chinese;
+      
+      document.getElementById('addBtn').style.display = 'none';
+      document.getElementById('saveBtn').style.display = 'block';
+      document.getElementById('cancelBtn').style.display = 'block';
+    }
+
+    // 保存编辑
+    function saveEdit() {
+      const english = document.getElementById('englishInput').value.trim().toLowerCase();
+      const chinese = document.getElementById('chineseInput').value.trim();
+      
+      if (english && chinese) {
+        words[editingIndex] = { english, chinese };
+        saveWordsToStorage();
+        cancelEdit();
+        renderWordList();
+        if (currentWordIndex === editingIndex) {
+          shuffleLetters();
+        }
+      }
+    }
+
+    // 取消编辑
+    function cancelEdit() {
+      editingIndex = null;
+      document.getElementById('englishInput').value = '';
+      document.getElementById('chineseInput').value = '';
+      
+      document.getElementById('addBtn').style.display = 'block';
+      document.getElementById('saveBtn').style.display = 'none';
+      document.getElementById('cancelBtn').style.display = 'none';
+    }
+
+    // 删除单词
+    function deleteWord(index) {
+      if (words.length <= 1) {
+        alert('至少需要保留一个单词！');
+        return;
+      }
+      
+      words.splice(index, 1);
+      if (currentWordIndex >= words.length) {
+        currentWordIndex = 0;
+        shuffleLetters();
+      }
+      saveWordsToStorage(); 
+      renderWordList();
+    }
+
+    // 启动游戏
+    initGame();
+  </script>
+</body>
+</html>
