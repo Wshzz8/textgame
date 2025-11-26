@@ -465,297 +465,283 @@
     </div>
   </div>
 
-  <script>
-    // 游戏状态
-    const WORD_LIB_PASSWORD = "0249"; 
-    let hasWordLibAccess = false;
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    doc, 
+    getDoc, 
+    setDoc 
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-    // 存储单词库到 localStorage
-    function saveWordsToStorage() {
-      localStorage.setItem("wordLibrary", JSON.stringify(words));
+  // Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyDsVWuA03ZpYENxAj1JPnffrG3Ptkl9wyQ",
+    authDomain: "wordgame-4f738.firebaseapp.com",
+    projectId: "wordgame-4f738",
+    storageBucket: "wordgame-4f738.firebasestorage.app",
+    messagingSenderId: "840109786086",
+    appId: "1:840109786086:web:96a65fdcfb97a95cdccc27"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const wordDocRef = doc(db, "wordGame", "dictionary");
+
+  // -------------------------
+  // 🔥 初始单词（第一次写入）
+  // -------------------------
+  let words = [
+    { english: 'attempt', chinese: '尝试' },
+    { english: 'hospitality', chinese: '热情好客' },
+    { english: 'firmly', chinese: '坚定地（确定）' },
+    { english: 'inattention', chinese: '忽略' },
+    { english: 'neglect', chinese: '忽略' },
+    { english: 'eliminate', chinese: '消除' },
+    { english: 'stay away', chinese: '没有出席' },
+    { english: 'conducive', chinese: '适合' },
+    { english: 'compliance', chinese: '服从' }
+  ];
+
+  let currentWordIndex = 0;
+  let score = 0;
+  let userAnswer = [];
+  let shuffledLetters = [];
+  let editingIndex = null;
+  let hasWordLibAccess = false;
+
+  const WORD_LIB_PASSWORD = "0249";
+
+  // -------------------------
+  // 🔥 Firestore : 读取单词库
+  // -------------------------
+  async function loadWordsFromServer() {
+    const snapshot = await getDoc(wordDocRef);
+    if (snapshot.exists()) {
+      words = snapshot.data().list;
+    } else {
+      await setDoc(wordDocRef, { list: words });
     }
+  }
 
-    // 从 localStorage 读取单词库
-    function loadWordsFromStorage() {
-      const saved = localStorage.getItem("wordLibrary");
-      if (saved) {
-        words = JSON.parse(saved);
-      }
-    }
+  // -------------------------
+  // 🔥 Firestore：保存单词库
+  // -------------------------
+  async function saveWordsToServer() {
+    await setDoc(wordDocRef, { list: words });
+  }
 
+  // -------------------------
+  // 🎮 初始化游戏
+  // -------------------------
+  async function initGame() {
+    await loadWordsFromServer();
+    renderWordList();
+    shuffleLetters();
+  }
 
-    let words = [
-      { english: 'attempt', chinese: '尝试' },
-      { english: 'hospitality', chinese: '热情好客' },
-      { english: 'firmly', chinese: '坚定地（确定）' },
-      { english: 'inattention', chinese: '忽略' },
-      { english: 'neglect', chinese: '忽略' },
-      { english: 'eliminate', chinese: '消除' },
-      { english: 'stay away', chinese: '没有出席' },
-      { english: 'conducive', chinese: '适合' },
-      { english: 'compliance', chinese: '服从' }
-    ];
+  // -------------------------
+  // 🎮 游戏逻辑（你的原版）
+  // -------------------------
+  function shuffleLetters() {
+    const word = words[currentWordIndex];
+    document.getElementById('chineseWord').textContent = word.chinese;
 
-    let currentWordIndex = 0;
-    let score = 0;
-    let userAnswer = [];
-    let shuffledLetters = [];
-    let isPlaying = false;
-    let editingIndex = null;
+    const letters = word.english.split('');
+    shuffledLetters = letters
+      .map((letter, index) => ({ letter, id: index, used: false }))
+      .sort(() => Math.random() - 0.5);
 
+    userAnswer = [];
+    renderGame();
+  }
 
-
-    // 初始化游戏
-    function initGame() {
-      loadWordsFromStorage();
-      shuffleLetters();
-      renderWordList();
-    }
-    // 打乱字母
-    function shuffleLetters() {
-      const word = words[currentWordIndex];
-      document.getElementById('chineseWord').textContent = word.chinese;
-      
-      const letters = word.english.split('');
-      shuffledLetters = letters
-        .map((letter, index) => ({ letter, id: index, used: false }))
-        .sort(() => Math.random() - 0.5);
-      
-      userAnswer = [];
-      renderGame();
-    }
-
-    // 渲染游戏界面
-    function renderGame() {
-      // 渲染答案区
-      const answerArea = document.getElementById('answerArea');
-      if (userAnswer.length === 0) {
-        answerArea.innerHTML = '<span class="placeholder">点击下方字母开始拼写...</span>';
-      } else {
-        answerArea.innerHTML = userAnswer
-          .map((obj, index) => 
-            `<button class="letter-btn answer" onclick="removeFromAnswer(${index})">${obj.letter}</button>`
-          )
-          .join('');
-      }
-
-      // 渲染字母选择区
-      const lettersArea = document.getElementById('lettersArea');
-      lettersArea.innerHTML = shuffledLetters
-        .map((obj) => 
-          `<button class="letter-btn choice" 
-            onclick="addToAnswer(${obj.id})" 
-            ${obj.used ? 'disabled' : ''}>
-            ${obj.letter}
-          </button>`
+  function renderGame() {
+    const answerArea = document.getElementById('answerArea');
+    if (userAnswer.length === 0) {
+      answerArea.innerHTML = '<span class="placeholder">点击下方字母开始拼写...</span>';
+    } else {
+      answerArea.innerHTML = userAnswer
+        .map((obj, index) => 
+          `<button class="letter-btn answer" onclick="removeFromAnswer(${index})">${obj.letter}</button>`
         )
         .join('');
     }
 
-    // 添加字母到答案
-    function addToAnswer(id) {
-      const letterObj = shuffledLetters.find(l => l.id === id);
-      if (letterObj.used) return;
+    const lettersArea = document.getElementById('lettersArea');
+    lettersArea.innerHTML = shuffledLetters
+      .map((obj) => 
+        `<button class="letter-btn choice" 
+          onclick="addToAnswer(${obj.id})" 
+          ${obj.used ? 'disabled' : ''}>
+          ${obj.letter}
+        </button>`
+      )
+      .join('');
+  }
 
-      userAnswer.push(letterObj);
-      letterObj.used = true;
-      renderGame();
+  window.addToAnswer = function(id) {
+    const letterObj = shuffledLetters.find(l => l.id === id);
+    if (letterObj.used) return;
 
-      // 检查是否完成
-      if (userAnswer.length === words[currentWordIndex].english.length) {
-        checkAnswer();
-      }
+    userAnswer.push(letterObj);
+    letterObj.used = true;
+    renderGame();
+
+    if (userAnswer.length === words[currentWordIndex].english.length) {
+      checkAnswer();
     }
+  }
 
-    // 从答案中移除字母
-    function removeFromAnswer(index) {
-      const letterObj = userAnswer[index];
-      userAnswer.splice(index, 1);
-      
-      const found = shuffledLetters.find(l => l.id === letterObj.id);
-      found.used = false;
-      
-      renderGame();
-    }
+  window.removeFromAnswer = function(index) {
+    const letterObj = userAnswer[index];
+    userAnswer.splice(index, 1);
 
-    // 检查答案
-    function checkAnswer() {
-      const userWord = userAnswer.map(l => l.letter).join('');
-      const correctWord = words[currentWordIndex].english;
-      
-      if (userWord === correctWord) {
-        score += 10;
-        document.getElementById('score').textContent = score;
-        
-        const successMsg = document.getElementById('successMsg');
-        successMsg.classList.add('active');
-        
-        setTimeout(() => {
-          successMsg.classList.remove('active');
-          nextWord();
-        }, 1500);
-      }
-    }
+    const found = shuffledLetters.find(l => l.id === letterObj.id);
+    found.used = false;
 
-    // 下一个单词
-    function nextWord() {
-      currentWordIndex = (currentWordIndex + 1) % words.length;
-      shuffleLetters();
-    }
+    renderGame();
+  }
 
-    // 重置游戏
-    function resetGame() {
-      currentWordIndex = 0;
-      score = 0;
+  function checkAnswer() {
+    const userWord = userAnswer.map(l => l.letter).join('');
+    const correctWord = words[currentWordIndex].english;
+
+    if (userWord === correctWord) {
+      score += 10;
       document.getElementById('score').textContent = score;
-      shuffleLetters();
+
+      const successMsg = document.getElementById('successMsg');
+      successMsg.classList.add('active');
+
+      setTimeout(() => {
+        successMsg.classList.remove('active');
+        nextWord();
+      }, 1500);
     }
+  }
 
-    // 播放发音
-    function playSound() {
-      if (isPlaying) return;
-      
-      isPlaying = true;
-      const soundBtn = document.getElementById('soundBtn');
-      const soundIcon = document.getElementById('soundIcon');
-      
-      soundBtn.disabled = true;
-      soundIcon.classList.add('pulse');
-      
-      try {
-        const utterance = new SpeechSynthesisUtterance(words[currentWordIndex].english);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.8;
-        utterance.onend = () => {
-          isPlaying = false;
-          soundBtn.disabled = false;
-          soundIcon.classList.remove('pulse');
-        };
-        utterance.onerror = () => {
-          isPlaying = false;
-          soundBtn.disabled = false;
-          soundIcon.classList.remove('pulse');
-        };
-        window.speechSynthesis.speak(utterance);
-      } catch (error) {
-        console.log('语音播放失败');
-        isPlaying = false;
-        soundBtn.disabled = false;
-        soundIcon.classList.remove('pulse');
-      }
-    }
+  function nextWord() {
+    currentWordIndex = (currentWordIndex + 1) % words.length;
+    shuffleLetters();
+  }
 
-    // 切换单词管理器
-    function toggleWordManager() {
-      if (!hasWordLibAccess) {
-        const pwd = prompt("请输入访问密码：");
+  window.resetGame = function() {
+    currentWordIndex = 0;
+    score = 0;
+    document.getElementById('score').textContent = score;
+    shuffleLetters();
+  }
 
-        if (pwd !== WORD_LIB_PASSWORD) {
-          alert("密码错误！");
-          return;
-        }
+  window.playSound = function() {
+    const utterance = new SpeechSynthesisUtterance(words[currentWordIndex].english);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.8;
+    window.speechSynthesis.speak(utterance);
+  }
 
-        hasWordLibAccess = true; // 成功一次之后就不再重复验证
-        alert("验证成功～可以管理单词库啦！");
-      }
-
-      const manager = document.getElementById('wordManager');
-      manager.classList.toggle('active');
-    }
-
-
-    // 渲染单词列表
-    function renderWordList() {
-      const wordList = document.getElementById('wordList');
-      wordList.innerHTML = words
-        .map((word, index) => `
-          <div class="word-item">
-            <div class="word-text">
-              <span class="word-en">${word.english}</span>
-              <span style="color: #9ca3af; margin: 0 8px;">-</span>
-              <span class="word-cn">${word.chinese}</span>
-            </div>
-            <div class="word-actions">
-              <button class="icon-btn btn-yellow" onclick="startEdit(${index})">✏️</button>
-              <button class="icon-btn btn-red" onclick="deleteWord(${index})">🗑️</button>
-            </div>
-          </div>
-        `)
-        .join('');
-      
-      document.getElementById('wordCount').textContent = words.length;
-    }
-
-    // 添加单词
-    function addWord() {
-      const english = document.getElementById('englishInput').value.trim().toLowerCase();
-      const chinese = document.getElementById('chineseInput').value.trim();
-      
-      if (english && chinese) {
-        words.push({ english, chinese });
-        saveWordsToStorage();
-        document.getElementById('englishInput').value = '';
-        document.getElementById('chineseInput').value = '';
-        renderWordList();
-      }
-    }
-
-    // 开始编辑
-    function startEdit(index) {
-      editingIndex = index;
-      document.getElementById('englishInput').value = words[index].english;
-      document.getElementById('chineseInput').value = words[index].chinese;
-      
-      document.getElementById('addBtn').style.display = 'none';
-      document.getElementById('saveBtn').style.display = 'block';
-      document.getElementById('cancelBtn').style.display = 'block';
-    }
-
-    // 保存编辑
-    function saveEdit() {
-      const english = document.getElementById('englishInput').value.trim().toLowerCase();
-      const chinese = document.getElementById('chineseInput').value.trim();
-      
-      if (english && chinese) {
-        words[editingIndex] = { english, chinese };
-        saveWordsToStorage();
-        cancelEdit();
-        renderWordList();
-        if (currentWordIndex === editingIndex) {
-          shuffleLetters();
-        }
-      }
-    }
-
-    // 取消编辑
-    function cancelEdit() {
-      editingIndex = null;
-      document.getElementById('englishInput').value = '';
-      document.getElementById('chineseInput').value = '';
-      
-      document.getElementById('addBtn').style.display = 'block';
-      document.getElementById('saveBtn').style.display = 'none';
-      document.getElementById('cancelBtn').style.display = 'none';
-    }
-
-    // 删除单词
-    function deleteWord(index) {
-      if (words.length <= 1) {
-        alert('至少需要保留一个单词！');
+  // -------------------------
+  // 🟣 单词管理（已加入 Firebase）
+  // -------------------------
+  window.toggleWordManager = function () {
+    if (!hasWordLibAccess) {
+      const pwd = prompt("请输入访问密码：");
+      if (pwd !== WORD_LIB_PASSWORD) {
+        alert("密码错误！");
         return;
       }
-      
-      words.splice(index, 1);
-      if (currentWordIndex >= words.length) {
-        currentWordIndex = 0;
-        shuffleLetters();
-      }
-      saveWordsToStorage(); 
-      renderWordList();
+      hasWordLibAccess = true;
+      alert("已进入单词管理模式！");
     }
+    document.getElementById('wordManager').classList.toggle('active');
+  };
 
-    // 启动游戏
-    initGame();
-  </script>
+  function renderWordList() {
+    const wordList = document.getElementById('wordList');
+    wordList.innerHTML = words.map((word, index) => `
+      <div class="word-item">
+        <div class="word-text">
+          <span class="word-en">${word.english}</span>
+          <span style="color: #9ca3af;"> - </span>
+          <span class="word-cn">${word.chinese}</span>
+        </div>
+        <div class="word-actions">
+          <button class="icon-btn btn-yellow" onclick="startEdit(${index})">✏️</button>
+          <button class="icon-btn btn-red" onclick="deleteWord(${index})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+      
+    document.getElementById('wordCount').textContent = words.length;
+  }
+
+  window.addWord = async function () {
+    const english = englishInput.value.trim().toLowerCase();
+    const chinese = chineseInput.value.trim();
+    if (!english || !chinese) return;
+
+    words.push({ english, chinese });
+    englishInput.value = "";
+    chineseInput.value = "";
+
+    await saveWordsToServer();
+    renderWordList();
+  };
+
+  window.startEdit = function(index) {
+    editingIndex = index;
+    englishInput.value = words[index].english;
+    chineseInput.value = words[index].chinese;
+
+    addBtn.style.display = "none";
+    saveBtn.style.display = "block";
+    cancelBtn.style.display = "block";
+  };
+
+  window.saveEdit = async function() {
+    const english = englishInput.value.trim().toLowerCase();
+    const chinese = chineseInput.value.trim();
+
+    words[editingIndex] = { english, chinese };
+    editingIndex = null;
+
+    englishInput.value = "";
+    chineseInput.value = "";
+
+    addBtn.style.display = "block";
+    saveBtn.style.display = "none";
+    cancelBtn.style.display = "none";
+
+    await saveWordsToServer();
+    renderWordList();
+    shuffleLetters();
+  };
+
+  window.cancelEdit = function() {
+    editingIndex = null;
+    englishInput.value = "";
+    chineseInput.value = "";
+
+    addBtn.style.display = "block";
+    saveBtn.style.display = "none";
+    cancelBtn.style.display = "none";
+  };
+
+  window.deleteWord = async function(index) {
+    words.splice(index, 1);
+
+    await saveWordsToServer();
+    renderWordList();
+    shuffleLetters();
+  };
+
+  // -------------------------
+  // 🚀 启动游戏
+  // -------------------------
+  initGame();
+</script>
+
 </body>
+
 </html>
